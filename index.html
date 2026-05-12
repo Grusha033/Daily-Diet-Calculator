@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Калькулятор добового раціону студента</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: system-ui, sans-serif; }
+    input[type="number"] { width: 100%; }
+    th { white-space: nowrap; }
+  </style>
+</head>
+<body class="bg-[#F6F6F6] min-h-screen pb-12">
+
+  <div class="max-w-4xl mx-auto p-4">
+    <h1 class="text-3xl font-bold text-center my-8 text-[#223125]">
+      Калькулятор добового раціону
+    </h1>
+
+    <div class="bg-white rounded-2xl shadow p-6 mb-6 border border-[#E6E7EB]">
+      <h2 class="font-semibold mb-4 text-[#223125]">Добова потреба (студент)</h2>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div>
+          <label class="block text-sm text-[#223125] mb-1">Білки (г)</label>
+          <input id="norm_protein" value="109" type="number" class="border border-[#E6E7EB] rounded-xl px-4 py-3 w-full focus:outline-none focus:border-[#729969]">
+        </div>
+        <div>
+          <label class="block text-sm text-[#223125] mb-1">Жири (г)</label>
+          <input id="norm_fat" value="106" type="number" class="border border-[#E6E7EB] rounded-xl px-4 py-3 w-full focus:outline-none focus:border-[#729969]">
+        </div>
+        <div>
+          <label class="block text-sm text-[#223125] mb-1">Вуглеводи (г)</label>
+          <input id="norm_carb" value="433" type="number" class="border border-[#E6E7EB] rounded-xl px-4 py-3 w-full focus:outline-none focus:border-[#729969]">
+        </div>
+        <div>
+          <label class="block text-sm text-[#223125] mb-1">Калорії (ккал)</label>
+          <input id="norm_kcal" value="2308" type="number" class="border border-[#E6E7EB] rounded-xl px-4 py-3 w-full focus:outline-none focus:border-[#729969]">
+        </div>
+      </div>
+    </div>
+
+    <div id="meals"></div>
+
+    <div class="flex gap-3 mt-6">
+      <button onclick="addMeal()" 
+              class="flex-1 bg-[#729969] hover:bg-[#223125] text-white px-6 py-4 rounded-2xl font-medium transition-colors">
+        + Додати ще один прийом їжі
+      </button>
+      <button onclick="clearAll()" 
+              class="bg-red-600 hover:bg-red-700 text-white px-6 py-4 rounded-2xl font-medium transition-colors">
+        Очистити все
+      </button>
+    </div>
+
+    <div class="mt-10 bg-white rounded-2xl shadow-lg p-6 border border-[#E6E7EB]">
+      <h2 class="text-xl font-bold mb-4 text-[#223125]">Загальний підсумок</h2>
+      <table class="w-full text-left">
+        <thead>
+          <tr class="border-b border-[#E6E7EB]">
+            <th class="py-4">Показник</th>
+            <th class="py-4 text-center">Отримали</th>
+            <th class="py-4 text-center">Норма</th>
+            <th class="py-4 text-center">% виконання</th>
+          </tr>
+        </thead>
+        <tbody id="total-row" class="text-lg"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="mt-16 py-6 text-center text-[#A1C0C2] text-sm border-t border-[#E6E7EB]">
+    MIT License • Made for Li❤️
+  </footer>
+
+<script>
+let meals = [
+  { name: "Сніданок", products: [] },
+  { name: "Обід", products: [] },
+  { name: "Вечеря", products: [] }
+];
+
+function loadFromStorage() {
+  const saved = localStorage.getItem('dietCalculator');
+  if (saved) {
+    const data = JSON.parse(saved);
+    if (data.meals) meals = data.meals;
+  }
+}
+
+function saveToStorage() {
+  localStorage.setItem('dietCalculator', JSON.stringify({ meals }));
+}
+
+function render() {
+  const container = document.getElementById('meals');
+  container.innerHTML = '';
+
+  meals.forEach((meal, mealIndex) => {
+    let html = `
+      <div class="bg-white rounded-2xl shadow mb-8 overflow-hidden border border-[#E6E7EB]">
+        <div class="bg-[#223125] text-white px-6 py-4 font-medium flex justify-between items-center">
+          <span>${meal.name}</span>
+          <button onclick="removeMeal(${mealIndex})" class="text-[#A1C0C2] hover:text-white text-2xl leading-none">×</button>
+        </div>
+        <div class="p-6">
+          <table class="w-full mb-5 table-fixed">
+            <thead>
+              <tr class="bg-[#F6F6F6]">
+                <th class="p-4 text-left w-70">Продукт</th>
+                <th class="p-4 text-center w-28">Кільк(г)</th>
+                <th class="p-4 text-center w-28">Б(г/100г)</th>
+                <th class="p-4 text-center w-28">Ж(г/100г)</th>
+                <th class="p-4 text-center w-28">Вуг(г/100г)</th>
+                <th class="p-4 text-center w-28">Ккал</th>
+                <th class="w-12"></th>
+              </tr>
+            </thead>
+            <tbody id="meal-${mealIndex}"></tbody>
+          </table>
+          
+          <button onclick="addProduct(${mealIndex})" 
+                  class="text-[#729969] hover:text-[#223125] font-medium">
+            + Додати продукт
+          </button>
+        </div>
+      </div>`;
+    
+    container.innerHTML += html;
+
+    const tbody = document.getElementById(`meal-${mealIndex}`);
+    meal.products.forEach((prod, prodIndex) => {
+      const row = document.createElement('tr');
+      row.className = "border-b border-[#E6E7EB] hover:bg-[#F6F6F6]";
+      row.innerHTML = `
+        <td class="p-4">
+          <input value="${prod.name || ''}" 
+                 onchange="updateProduct(${mealIndex},${prodIndex}, 'name', this.value)" 
+                 class="w-full border border-[#E6E7EB] rounded-xl px-4 py-3">
+        </td>
+        <td class="p-4">
+          <input type="number" value="${prod.qty || 100}" 
+                 onchange="updateProduct(${mealIndex},${prodIndex}, 'qty', this.value)" 
+                 class="w-full border border-[#E6E7EB] rounded-xl px-4 py-3 text-center">
+        </td>
+        <td class="p-4">
+          <input type="number" step="0.1" value="${prod.protein100 || 0}" 
+                 onchange="updateProduct(${mealIndex},${prodIndex}, 'protein100', this.value)" 
+                 class="w-full border border-[#E6E7EB] rounded-xl px-4 py-3 text-center">
+        </td>
+        <td class="p-4">
+          <input type="number" step="0.1" value="${prod.fat100 || 0}" 
+                 onchange="updateProduct(${mealIndex},${prodIndex}, 'fat100', this.value)" 
+                 class="w-full border border-[#E6E7EB] rounded-xl px-4 py-3 text-center">
+        </td>
+        <td class="p-4">
+          <input type="number" step="0.1" value="${prod.carb100 || 0}" 
+                 onchange="updateProduct(${mealIndex},${prodIndex}, 'carb100', this.value)" 
+                 class="w-full border border-[#E6E7EB] rounded-xl px-4 py-3 text-center">
+        </td>
+        <td class="p-4 text-center font-medium" id="kcal-${mealIndex}-${prodIndex}"></td>
+        <td class="p-4 text-center">
+          <button onclick="removeProduct(${mealIndex},${prodIndex})" class="text-red-500 hover:text-red-700 text-xl">×</button>
+        </td>
+      `;
+      tbody.appendChild(row);
+      updateRowCalories(mealIndex, prodIndex);
+    });
+  });
+
+  updateTotal();
+}
+
+function updateProduct(mealIndex, prodIndex, field, value) {
+  if (field === 'name') {
+    meals[mealIndex].products[prodIndex].name = value;
+  } else {
+    meals[mealIndex].products[prodIndex][field] = parseFloat(value) || 0;
+  }
+  updateRowCalories(mealIndex, prodIndex);
+  updateTotal();
+  saveToStorage();
+}
+
+function updateRowCalories(mealIndex, prodIndex) {
+  const p = meals[mealIndex].products[prodIndex];
+  const factor = (p.qty || 0) / 100;
+  const kcal = Math.round(((p.protein100 || 0)*4 + (p.fat100 || 0)*9 + (p.carb100 || 0)*4) * factor);
+  const cell = document.getElementById(`kcal-${mealIndex}-${prodIndex}`);
+  if (cell) cell.textContent = kcal;
+}
+
+function addProduct(mealIndex) {
+  meals[mealIndex].products.push({
+    name: "Новий продукт",
+    qty: 100,
+    protein100: 0,
+    fat100: 0,
+    carb100: 0
+  });
+  render();
+  saveToStorage();
+}
+
+function removeProduct(mealIndex, prodIndex) {
+  meals[mealIndex].products.splice(prodIndex, 1);
+  render();
+  saveToStorage();
+}
+
+function addMeal() {
+  meals.push({ 
+    name: `Прийом ${meals.length + 1}`, 
+    products: [] 
+  });
+  render();
+  saveToStorage();
+}
+
+function removeMeal(mealIndex) {
+  if (confirm("Видалити цей прийом їжі?")) {
+    meals.splice(mealIndex, 1);
+    render();
+    saveToStorage();
+  }
+}
+
+function clearAll() {
+  if (confirm("Очистити ВЕСЬ калькулятор? Всі дані буде втрачено.")) {
+    localStorage.removeItem('dietCalculator');
+    meals = [
+      { name: "Сніданок", products: [] },
+      { name: "Обід", products: [] },
+      { name: "Вечеря", products: [] }
+    ];
+    render();
+  }
+}
+
+function calculateTotals() {
+  let total = { protein: 0, fat: 0, carb: 0, kcal: 0 };
+
+  meals.forEach(meal => {
+    meal.products.forEach(p => {
+      const factor = (p.qty || 0) / 100;
+      total.protein += (p.protein100 || 0) * factor;
+      total.fat += (p.fat100 || 0) * factor;
+      total.carb += (p.carb100 || 0) * factor;
+      total.kcal += Math.round(((p.protein100||0)*4 + (p.fat100||0)*9 + (p.carb100||0)*4) * factor);
+    });
+  });
+
+  return total;
+}
+
+function updateTotal() {
+  const totals = calculateTotals();
+  const norm_p = parseFloat(document.getElementById('norm_protein').value) || 109;
+  const norm_f = parseFloat(document.getElementById('norm_fat').value) || 106;
+  const norm_c = parseFloat(document.getElementById('norm_carb').value) || 433;
+  const norm_k = parseFloat(document.getElementById('norm_kcal').value) || 2308;
+
+  const html = `
+    <tr class="border-b border-[#E6E7EB]">
+      <td class="py-4 font-medium text-[#223125]">Білки</td>
+      <td class="py-4 text-center">${totals.protein.toFixed(1)}</td>
+      <td class="py-4 text-center">${norm_p}</td>
+      <td class="py-4 text-center font-semibold ${totals.protein >= norm_p*0.95 ? 'text-[#729969]' : 'text-orange-600'}">${(totals.protein / norm_p * 100).toFixed(0)}%</td>
+    </tr>
+    <tr class="border-b border-[#E6E7EB]">
+      <td class="py-4 font-medium text-[#223125]">Жири</td>
+      <td class="py-4 text-center">${totals.fat.toFixed(1)}</td>
+      <td class="py-4 text-center">${norm_f}</td>
+      <td class="py-4 text-center font-semibold ${totals.fat >= norm_f*0.95 ? 'text-[#729969]' : 'text-orange-600'}">${(totals.fat / norm_f * 100).toFixed(0)}%</td>
+    </tr>
+    <tr class="border-b border-[#E6E7EB]">
+      <td class="py-4 font-medium text-[#223125]">Вуглеводи</td>
+      <td class="py-4 text-center">${totals.carb.toFixed(1)}</td>
+      <td class="py-4 text-center">${norm_c}</td>
+      <td class="py-4 text-center font-semibold ${totals.carb >= norm_c*0.95 ? 'text-[#729969]' : 'text-orange-600'}">${(totals.carb / norm_c * 100).toFixed(0)}%</td>
+    </tr>
+    <tr>
+      <td class="py-4 font-bold text-[#223125]">Калорійність</td>
+      <td class="py-4 text-center font-bold">${totals.kcal}</td>
+      <td class="py-4 text-center font-bold">${norm_k}</td>
+      <td class="py-4 text-center font-bold ${totals.kcal >= norm_k*0.95 ? 'text-[#729969]' : 'text-orange-600'}">${(totals.kcal / norm_k * 100).toFixed(0)}%</td>
+    </tr>
+  `;
+
+  document.getElementById('total-row').innerHTML = html;
+}
+
+loadFromStorage();
+render();
+</script>
+</body>
+</html>
