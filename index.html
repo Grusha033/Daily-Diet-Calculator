@@ -13,6 +13,17 @@
 </head>
 <body class="bg-[#F6F6F6] min-h-screen pb-12">
 
+<div id="rotate-warning"
+     class="fixed inset-0 bg-black text-white flex items-center justify-center text-center p-6 z-50 hidden">
+  <div>
+    <div class="text-5xl mb-4">📱</div>
+    <h2 class="text-xl font-bold mb-2">Переверни телефон</h2>
+    <p class="text-sm opacity-80">
+      Для зручного використання калькулятора переверни екран у горизонтальний режим
+    </p>
+  </div>
+</div>
+  
   <div class="max-w-4xl mx-auto p-4">
     <h1 class="text-3xl font-bold text-center my-8 text-[#223125]">
       Калькулятор добового раціону
@@ -289,6 +300,21 @@ function updateTotal() {
   `;
 
   document.getElementById('total-row').innerHTML = html;
+
+  function checkOrientation() {
+  const warning = document.getElementById('rotate-warning');
+
+  if (window.innerWidth < 768 && window.innerHeight > window.innerWidth) {
+    warning.classList.remove('hidden');
+  } else {
+    warning.classList.add('hidden');
+  }
+}
+
+
+window.addEventListener('load', checkOrientation);
+window.addEventListener('resize', checkOrientation);
+window.addEventListener('orientationchange', checkOrientation);
 }
 
 loadFromStorage();
